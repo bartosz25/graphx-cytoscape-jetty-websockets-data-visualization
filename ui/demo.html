@@ -1,0 +1,123 @@
+<!DOCTYPE>
+
+<html>
+
+  <head>
+    <title>cytoscape-dagre.js demo - Apache Spark GraphX visualization</title>
+
+    <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1, maximum-scale=1">
+
+    <script src="https://unpkg.com/cytoscape/dist/cytoscape.min.js"></script>
+
+    <!-- for testing with local version of cytoscape.js -->
+    <!--<script src="../cytoscape.js/build/cytoscape.js"></script>-->
+
+    <script src="https://unpkg.com/dagre@0.7.4/dist/dagre.js"></script>
+    <script src="cytoscape-dagre.js"></script>
+
+    <style>
+      body {
+        font-family: helvetica;
+        font-size: 14px;
+      }
+
+      #cy {
+        width: 100%;
+        height: 100%;
+        position: absolute;
+        left: 0;
+        top: 0;
+        z-index: 999;
+      }
+
+      h1 {
+        opacity: 0.5;
+        font-size: 1em;
+      }
+    </style>
+
+<script> 
+const LAYOUT_NAME = 'dagre';
+window.addEventListener('DOMContentLoaded', function(){
+
+  var cy = window.cy = cytoscape({
+    container: document.getElementById('cy'),
+    boxSelectionEnabled: false,
+    autounselectify: true,
+    layout: {
+      name: LAYOUT_NAME
+    },
+    style: [
+      {
+        selector: 'node',
+        style: {
+          'width': 5,
+          'height': 5,
+          'background-color': '#11479e',
+          'label': 'data(data)',
+          'font-size': '0.4em'
+        }
+      },
+      {
+        selector: 'edge',
+        style: {
+          'width': 1,
+          'target-arrow-shape': 'triangle',
+          'line-color': '#939293',
+          'target-arrow-color': '#939293',
+          'curve-style': 'bezier',
+          'arrow-scale': 0.4,
+          'label': 'data(value)',
+          'font-size': '0.4em'
+        }
+      }
+    ],
+
+    elements: {
+      nodes: [],
+      edges: []
+    }
+  });
+  const vertices = new Map()
+  const edges = []; 
+  window.cy.updateGraph = function(tripletString) {
+    const triplet = JSON.parse(tripletString);
+    var sourceVertex = triplet.source,
+        targetVertex = triplet.target;
+    if (sourceVertex) {
+      vertices.set(sourceVertex.id, {group: 'nodes', id: sourceVertex.id, data: sourceVertex}); 
+    }
+    if (targetVertex) {
+      vertices.set(targetVertex.id, {group: 'nodes', id: targetVertex.id, data: targetVertex}); 
+    }
+    if (triplet.edgeValue !== null) { 
+      edges.push(
+        {group: 'edges', data: {source: sourceVertex.id, target: targetVertex.id, value: triplet.edgeValue}}
+      );
+    } 
+    window.cy.elements().remove();
+    window.cy.add(Array.from(vertices.values()));
+    window.cy.add(edges);
+    window.cy.layout({name: LAYOUT_NAME}).run();
+  }
+
+});
+
+const reader = new WebSocket("ws://localhost:7711/forward");
+reader.onmessage = function(event) {
+  window.cy.updateGraph(event.data);
+}
+reader.onopen = function(event) {
+  console.log("Connected to /forward endpoint");
+}
+</script>
+  </head>
+
+  <body>
+    <h1>cytoscape-dagre demo - Apache Spark GraphX visualization</h1>
+
+    <div id="cy"></div>
+
+  </body>
+
+</html>
